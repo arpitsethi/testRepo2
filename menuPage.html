@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <title><?= config.restaurantName || 'Restaurant Menu' ?></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+   <!-- Firebase App (required) -->
+<!-- Firebase App and Auth -->
+<!-- Firebase SDKs -->
+
+<!-- Inside <head> -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"></script>
+    
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const firebaseConfig = {
+          apiKey: "AIzaSyCtSZZVdnsG3U_CIQmfrMD_jUSNyJ1rHR4",
+          authDomain: "bababites-fb644.firebaseapp.com",
+          projectId: "bababites-fb644",
+          storageBucket: "bababites-fb644.appspot.com",
+          messagingSenderId: "663120181353",
+          appId: "1:663120181353:web:1d9708d736b17a57940af8",
+          measurementId: "G-PGYG2S4J4J"
+        };
+    
+        const app = firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+    
+        // ✅ Globally expose loginWithGoogle
+        window.loginWithGoogle = function () {
+          const provider = new firebase.auth.GoogleAuthProvider();
+          auth.signInWithPopup(provider)
+            .then(result => {
+              alert("✅ Logged in as: " + result.user.email);
+              closeLoginOptions(); // Close modal
+              showUserInfo(result.user); // Show user info
+            })
+            .catch(error => {
+              alert("❌ Google login failed: " + error.message);
+            });
+        };
+    
+        window.showUserInfo = function (user) {
+          const header = document.querySelector('.header h1');
+          if (!header.querySelector('.user-info')) {
+            header.innerHTML += `<span class="user-info" style="font-size:0.7rem; color:gray; margin-left:10px;">(👤 ${user.email})</span>`;
+          }
+        };
+      });
+    </script>
+    
+
+      
+
+    <style>
+
+    @media (max-width: 600px) {
+      .quantity-control .qty-btn {
+        padding: 6px 14px;
+        font-size: 2rem;
+      }
+    
+      .qty-input {
+        width: 45px;
+        font-size: 2rem;
+      }
+    
+      
+    }
+    
+    .qty-btn:first-child {
+      background-color: #683d38; /* red for minus */
+    }
+  
+    .qty-btn:last-child {
+      background-color: #2ecc71; /* green for plus */
+    }
+    
+    #header-buttons {
+        position: fixed;
+        top: 6rem;
+        right: 0.5rem;
+        z-index: 1001;
+        display: flex;
+        flex-direction: row;  /* Side by side */
+        align-items: center;
+        gap: 10px;
+      }
+      
+      .login-btn {
+        margin-right: 8rem;
+        background-color: var(--accent);
+        color: white;
+        padding: 8px 14px;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        cursor: pointer;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      }
+      
+      
+      @media (max-width: 600px) {
+        #header-buttons {
+          top: 5rem;
+          right: 0.5rem;
+          gap: 8px;
+        }
+      
+        #header-buttons .login-btn {
+          font-size: 0.9rem;
+          padding: 6px 10px;
+        }
+      }
+      
+    .cart-summary.disabled {
+      opacity: 0.5;
+      pointer-events: none;
+      cursor: default;
+    }
+
+    .outside-close-btn {
+      position: absolute;
+      top: -20px;
+      right: 1rem;
+      background: #fff;
+      border: 2px solid #ccc;
+      font-size: 1.2rem;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      cursor: pointer;
+      z-index: 2100;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+    
+    .cart-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .cart-modal-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 480px;
+      padding: 20px;
+    }
+    
+    .cart-modal {
+      background: var(--card-bg);
+      color: var(--text-color);
+      padding: 20px;
+      border-radius: 10px;
+      overflow-y: auto;
+      max-height: 70vh;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    }
+    
+    .cart-modal .close-btn {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      background: none;
+      border: none;
+      font-size: 1.4rem;
+      color: var(--text-color);
+      cursor: pointer;
+    }
+    
+    .cart-modal .cart-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px dashed #ccc;
+      padding: 10px 0;
+    }
+    
+    .cart-modal .cart-item:last-child {
+      border-bottom: none;
+    }
+    
+    .cart-modal .remove-btn {
+      color: var(--accent);
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 0.85rem;
+      margin-left: 8px;
+    }
+    
+    .cart-modal .checkout-btn {
+      margin-top: 15px;
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 1rem;
+      cursor: pointer;
+      width: 100%;
+    }
+    
+    .cart-modal .quantity-control {
+      margin-left: auto;
+    }
+    
+      .cart-details {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: var(--card-bg);
+        color: var(--text-color);
+        border: 1px solid var(--accent);
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        display: none;
+        z-index: 2000;
+        max-height: 80vh;
+        width: 90%;
+        max-width: 500px;
+        overflow-y: auto;
+      }
+
+      .modal-close-btn {
+        position: absolute;
+        top: 10px;
+        right: 12px;
+        background: transparent;
+        border: none;
+        font-size: 1.5rem;
+        color: var(--accent);
+        cursor: pointer;
+      }
+
+      .modal-backdrop {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1999;
+        display: none;
+      }
+      
+      
+      
+
+      .cart-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 5px 0;
+        border-bottom: 1px dashed #ccc;
+      }
+
+      .cart-item:last-child {
+        border-bottom: none;
+      }
+
+      .remove-btn {
+        background: none;
+        border: none;
+        color: var(--accent);
+        cursor: pointer;
+        font-size: 0.9rem;
+      }
+
+      .checkout-btn {
+        display: block;
+        margin: 10px auto 0;
+        background-color: var(--primary);
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-size: 1rem;
+        cursor: pointer;
+      }
+
+      .checkout-btn:hover {
+        background-color: var(--accent);
+      }
+
+      .add-cart-btn {
+        margin-left: 10px;
+        padding: 5px 10px;
+        font-size: 0.9rem;
+        background-color: var(--accent);
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+
+      .cart-summary {
+        position: fixed;
+        top: 6rem;
+        right: 0.5rem;
+        background: var(--primary);
+        color: white;
+        padding: 8px 14px;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        cursor: pointer;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        z-index: 1001;
+      }
+
+      .quantity-control {
+        display: inline-flex;
+        align-items: center;
+        margin-left: 10px;
+        background: #eee;
+        border-radius: 6px;
+        overflow: hidden;
+      }
+
+      .qty-btn {
+        background-color: var(--accent);
+        color: white;
+        border: none;
+        padding: 4px 10px;
+        font-size: 1rem;
+        cursor: pointer;
+      }
+
+      .qty-input {
+        width: 40px;
+        text-align: center;
+        border: none;
+        padding: 4px;
+        font-size: 1rem;
+        outline: none;
+      }
+
+      :root {
+        --primary: <?= config.themePrimary || '#ff7f50' ?>;
+        --accent: <?= config.themeAccent || '#ffb347' ?>;
+        --bg-color: <?= config.bgColor || '#f9f9f9' ?>;
+        --text-color: <?= config.textColor || '#333' ?>;
+        --card-bg: var(--bg-color);
+        --heading: <?= config.themePrimary || '#e67e22' ?>;
+      }
+
+      @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        font-family: 'Poppins', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        margin: 0;
+        padding: 0;
+      }
+
+      .header {
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        background-color: var(--bg-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        padding: 10px 20px;
+        border-bottom: 3px solid var(--accent);
+      }
+
+      img.logo {
+        border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      }
+
+      img.logo.small { max-width: 50px; }
+      img.logo.medium { max-width: 80px; }
+      img.logo.large { max-width: 120px; }
+      img.logo.xlarge { max-width: 160px; }
+
+      h1 {
+        font-size: 2.2rem;
+        color: var(--primary);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .controls-wrapper {
+        position: sticky;
+        top: 70px;
+        z-index: 998;
+        background-color: var(--bg-color);
+        border-bottom: 1px solid #ddd;
+      }
+
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        padding: 10px 20px;
+      }
+
+      .search-input {
+        padding: 8px 12px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        font-size: 1rem;
+        width: 100%;
+        max-width: 300px;
+      }
+
+      .toggle-btn {
+        padding: 8px 12px;
+        border-radius: 5px;
+        border: none;
+        cursor: pointer;
+        font-size: 1rem;
+        background-color: var(--primary);
+        color: white;
+        transition: background-color 0.3s ease, transform 0.2s ease;
+      }
+
+      .toggle-btn:hover {
+        background-color: var(--accent);
+        transform: translateY(-2px);
+      }
+
+      .category-links {
+        position: sticky;
+        top: 125px;
+        z-index: 997;
+        background-color: var(--bg-color);
+        padding: 10px 20px;
+        border-top: 1px solid #ddd;
+        border-bottom: 1px solid #ddd;
+      }
+
+      .category-row {
+        display: flex;
+        overflow-x: auto;
+        gap: 10px;
+        padding: 10px 0;
+        scrollbar-width: none;
+      }
+
+      .category-row::-webkit-scrollbar {
+        display: none;
+      }
+
+      .cat-link {
+        white-space: nowrap;
+        background-color: var(--primary);
+        padding: 8px 14px;
+        border-radius: 50px;
+        font-size: 0.95rem;
+        color: white;
+        text-decoration: none;
+        transition: background 0.3s ease;
+        cursor: pointer;
+      }
+
+      .cat-link:hover, .cat-link.active {
+        background-color: var(--accent);
+      }
+
+      .menu {
+        padding: 20px;
+      }
+
+      .category {
+        background: var(--card-bg);
+        border-left: 5px solid var(--accent);
+        padding: 20px;
+        margin-bottom: 25px;
+        border-radius: 10px;
+        box-shadow: 0 6px 15px rgba(0,0,0,0.08);
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeSlide 0.8s ease forwards;
+      }
+
+      @keyframes fadeSlide {
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .category h2 {
+        text-align: center;
+        color: var(--heading);
+        margin-top: 0;
+      }
+
+      .item {
+        padding: 8px 0;
+        border-bottom: 1px dashed #ccc;
+        transition: opacity 0.3s ease;
+      }
+
+      .item:last-child {
+        border-bottom: none;
+      }
+
+      .item.hidden {
+        display: none !important;
+      }
+
+      .scroll-top-btn {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        background-color: var(--primary);
+        color: white;
+        border: none;
+        padding: 12px 16px;
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        font-size: 20px;
+        display: none;
+        transition: transform 0.2s ease, background-color 0.3s ease;
+      }
+
+      .scroll-top-btn:hover {
+        background-color: var(--accent);
+        transform: translateY(-3px);
+      }
+
+      @media (max-width: 600px) {
+        .header {
+          flex-direction: column;
+        }
+
+        h1 {
+          font-size: 1.8rem;
+        }
+
+        img.logo.small,
+        img.logo.medium,
+        img.logo.large,
+        img.logo.xlarge {
+          max-width: 100px;
+        }
+      }
+
+      body.dark {
+        --bg-color: #121212;
+        --text-color: #eee;
+        --accent: #ff7f50;
+        --primary: #ffb347;
+        --card-bg: #1f1f1f;
+        --heading: #ffa07a;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <? if (config.logoUrl) { ?>
+        <? if (config.websiteLink) { ?>
+          <a href="<?= config.websiteLink ?>" target="_blank" rel="noopener noreferrer">
+            <img src="<?= config.logoUrl ?>" alt="Restaurant Logo" class="logo <?= config.logoSize || 'medium' ?>">
+          </a>
+        <? } else { ?>
+          <img src="<?= config.logoUrl ?>" alt="Restaurant Logo" class="logo <?= config.logoSize || 'medium' ?>">
+        <? } ?>
+      <? } ?>
+      <h1>
+        <? if (config.restaurantIcon) { ?>
+          <?= config.restaurantIcon ?>
+        <? } ?>
+        <? if (config.restaurantName) { ?>
+          <?= config.restaurantName ?>
+        <? } ?>
+      </h1>
+    </div>
+    <script>
+      window.appConfig = {
+        upiId: "<?= config.upiId || '' ?>",
+        upiQrUrl: "<?= config.upiQrUrl || '' ?>",
+        restaurantName: "<?= config.restaurantName || '' ?>"
+      };
+    </script>
+
+
+    <div class="controls-wrapper">
+      <div class="controls">
+        <input type="text" class="search-input" placeholder="Search menu items...">
+        <button class="toggle-btn" onclick="clearSearch()">Reset</button>
+        <button class="toggle-btn" onclick="toggleDarkMode()">Dark Mode</button>
+      </div>
+
+      <div class="cart-modal-overlay" id="cartModalOverlay">
+        <div class="cart-modal-wrapper">
+          <button class="outside-close-btn" onclick="closeCartModal()">❌</button>
+          <div class="cart-modal">
+            <h3>🔐 Login</h3>
+            <input type="email" id="emailInput" placeholder="Email" style="width:100%;margin-bottom:10px;">
+            <input type="password" id="passwordInput" placeholder="Password" style="width:100%;margin-bottom:10px;">
+            <button class="checkout-btn" onclick="loginWithEmail()">Login</button>
+            <p style="font-size: 0.9rem; text-align:center; margin-top: 10px;">Don't have an account?
+                <a href="#" onclick="signupWithEmail()">Sign Up</a>
+            </p>
+            <div id="cartItemsList"></div>
+            <button class="checkout-btn" onclick="checkoutCart()">🛒 Checkout</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 🔐 Login Options Modal -->
+<div id="loginOptionsModal" class="cart-modal-overlay" style="display: none;">
+    <div class="cart-modal-wrapper">
+      <button class="outside-close-btn" onclick="closeLoginOptions()">❌</button>
+      <div class="cart-modal">
+        <h3>🔐 Choose Login Method</h3>
+        <button class="checkout-btn" onclick="loginWithGoogle()">Continue with Google</button>
+        <div id="login-status"></div>
+        <!-- Future options -->
+        <!--
+        <button class="checkout-btn">Continue with WhatsApp</button>
+        <button class="checkout-btn">Continue with Email</button>
+        <button class="checkout-btn">Continue with Facebook</button>
+        -->
+      </div>
+    </div>
+  </div>
+  
+
+
+    </div>
+
+    <div id="header-buttons">
+        <button class="login-btn" onclick="openLoginModal()">🔐 Login</button>
+        <div class="cart-summary" id="cartSummary" onclick="openCartModal()">
+          🛒 <span id="cartCount">0</span> — ₹<span id="cartTotal">0</span>
+        </div>
+      </div>
+      
+      
+      
+
+    <div class="category-links">
+      <div class="category-row">
+        <? for (let category in menu) {
+             let safeId = encodeURIComponent(category); ?>
+          <a href="#<?= safeId ?>" class="cat-link" data-target="<?= safeId ?>">
+            <?= menu[category].emoji || '' ?> <?= category ?>
+          </a>
+        <? } ?>
+      </div>
+    </div>
+
+    <div class="menu">
+      <? for (let category in menu) {
+           let safeId = encodeURIComponent(category); ?>
+        <div class="category" id="<?= safeId ?>">
+          <h2><?= menu[category].emoji || '' ?> <?= category ?> <?= menu[category].emoji || '' ?></h2>
+          <? for (let item of menu[category].items) { ?>
+            <div class="item" data-item="<?= item.name.toLowerCase() ?>">
+              <?= item.name ?> — ₹<?= item.price ?>
+              <div class="quantity-control" data-name="<?= item.name ?>" data-price="<?= item.price ?>">
+                <button class="qty-btn" onclick="updateQty(this, -1)">−</button>
+                <input type="number" min="0" class="qty-input" value="0" oninput="manualQtyUpdate(this)">
+                <button class="qty-btn" onclick="updateQty(this, 1)">+</button>
+              </div>
+            </div>
+          <? } ?>
+        </div>
+      <? } ?>
+    </div>
+
+    <button class="scroll-top-btn" id="scrollTopBtn" onclick="scrollToTop()">⬆️</button>
+
+    <div class="modal-backdrop" id="cartBackdrop" onclick="toggleCartDetails()"></div>
+
+    <div class="cart-details" id="cartDetails">
+      <div id="cartItemsList"></div>
+      <button class="checkout-btn" onclick="checkoutCart()">🛒 Checkout</button>
+    </div>
+
+    <!-- Payment Modal -->
+    <div id="paymentModal" class="cart-modal-overlay" style="display:none;">
+      <div class="cart-modal-wrapper">
+        <button class="outside-close-btn" onclick="closePaymentModal()">❌</button>
+        <div class="cart-modal">
+          <h3>📲 Pay with UPI</h3>
+          <p>Total: ₹<span id="paymentAmount">0</span></p>
+          <img id="upiQrImage" src="" alt="UPI QR" style="max-width:100%; margin-bottom: 1rem;">
+          <!--a id="upiPayLink" class="checkout-btn" style="text-align:center; display:block; margin-bottom:10px;" target="_blank">🔗 Pay Now</a-->
+          <a id="downloadQrBtn" class="checkout-btn" download="upi_qr.png" target="_blank">⬇️ Download QR</a>
+          <p style="font-size: 0.9rem; color: gray;">
+            📷 Open PhonePe or GPay → Tap “Scan from Gallery” to pay using this QR.
+          </p>
+          <input type="text" id="txnIdInput" placeholder="Enter Transaction ID" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ccc; margin-bottom:10px;">
+          <button class="checkout-btn" onclick="submitPayment()">✅ Submit Payment</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 🔐 Login Modal -->
+<div id="loginModal" class="cart-modal-overlay" style="display:none;">
+    <div class="cart-modal-wrapper">
+      <button class="outside-close-btn" onclick="closeLoginModal()">❌</button>
+      <div class="cart-modal">
+        <h3>🔐 Login / Sign Up</h3>
+        <input type="email" id="emailInput" placeholder="Email" style="width:100%;margin-bottom:10px;">
+        <input type="password" id="passwordInput" placeholder="Password" style="width:100%;margin-bottom:10px;">
+        <button class="checkout-btn" onclick="loginWithEmail()">Login</button>
+        <p style="font-size: 0.9rem; text-align:center; margin-top: 10px;">
+          Don't have an account? <a href="#" onclick="signupWithEmail()">Sign Up</a>
+        </p>
+      </div>
+    </div>
+  </div>
+  
+        
+
+    <script>
+          function openLoginModal() {
+            document.getElementById('loginOptionsModal').style.display = 'flex';
+          }
+          
+          
+          function closeLoginModal() {
+            document.getElementById('loginModal').style.display = 'none';
+          }
+          
+          function closeLoginOptions() {
+            document.getElementById('loginOptionsModal').style.display = 'none';
+          }
+          
+          function loginWithEmail() {
+            /*const email = document.getElementById('emailInput').value.trim();
+            const password = document.getElementById('passwordInput').value.trim();
+          
+            firebase.auth().signInWithEmailAndPassword(email, password)
+              .then(userCredential => {
+                alert("✅ Logged in as: " + userCredential.user.email);
+                closeLoginModal();
+                showUserInfo();
+              })
+              .catch(error => {
+                alert("❌ Login Failed: " + error.message);
+              });*/
+          }
+         
+
+          
+          function signupWithEmail() {
+            const email = document.getElementById('emailInput').value.trim();
+            const password = document.getElementById('passwordInput').value.trim();
+          
+            /*firebase.auth().createUserWithEmailAndPassword(email, password)
+              .then(userCredential => {
+                alert("✅ Account created and logged in.");
+                closeLoginModal();
+                showUserInfo();
+              })
+              .catch(error => {
+                alert("❌ Signup Failed: " + error.message);
+              });*/
+          }
+          
+          function showUserInfo() {
+            const user = firebase.auth().currentUser;
+            if (user) {
+              const info = user.email;
+              const header = document.querySelector('.header h1');
+              if (!header.querySelector('.user-info')) {
+                header.innerHTML += `<span class="user-info" style="font-size:0.7rem; color:gray; margin-left:10px;">(👤 ${info})</span>`;
+              }
+            }
+          }
+          
+      const cart = [];
+      let cartDetailsVisible = false;
+
+      function updateQty(button, delta) {
+        const container = button.parentElement;
+        const input = container.querySelector('.qty-input');
+        const name = container.dataset.name;
+        const price = parseFloat(container.dataset.price);
+        let qty = Math.max(0, (parseInt(input.value) || 0) + delta);
+        input.value = qty;
+        updateCartItem(name, price, qty);
+      }
+      
+      function manualQtyUpdate(input) {
+        const container = input.parentElement;
+        const name = container.dataset.name;
+        const price = parseFloat(container.dataset.price);
+        let qty = Math.max(0, parseInt(input.value) || 0);
+        input.value = qty;
+        updateCartItem(name, price, qty);
+      }
+      
+      function updateCartItem(name, price, qty) {
+        const index = cart.findIndex(item => item.name === name);
+        if (index !== -1) {
+          if (qty === 0) {
+            cart.splice(index, 1);
+          } else {
+            cart[index].qty = qty;
+          }
+        } else if (qty > 0) {
+          cart.push({ name, price, qty });
+        }
+      
+        updateCartUI();
+      }
+
+      function updateCartUI() {
+        let totalQty = 0;
+        let totalPrice = 0;
+        const cartItemsContainer = document.getElementById('cartItemsList');
+        cartItemsContainer.innerHTML = '';
+      
+        cart.forEach(item => {
+          totalQty += item.qty;
+          totalPrice += item.qty * item.price;
+          cartItemsContainer.innerHTML += `
+            <div class="cart-item">
+              <span>${item.name}</span>
+              <div class="quantity-control" data-name="${item.name}" data-price="${item.price}">
+                <button class="qty-btn" onclick="updateQty(this, -1)">−</button>
+                <input type="number" min="0" class="qty-input" value="${item.qty}" oninput="manualQtyUpdate(this)">
+                <button class="qty-btn" onclick="updateQty(this, 1)">+</button>
+                <button class="remove-btn" onclick="removeFromCart('${item.name}')">Remove</button>
+              </div>
+            </div>`;
+        });
+      
+        document.getElementById('cartCount').innerText = totalQty;
+        document.getElementById('cartTotal').innerText = totalPrice.toFixed(2);
+        document.getElementById('cartSummary').style.display = 'block';
+      
+        // Update menu quantities
+        document.querySelectorAll('.quantity-control').forEach(control => {
+          const name = control.dataset.name;
+          const item = cart.find(i => i.name === name);
+          const input = control.querySelector('.qty-input');
+          if (input) input.value = item ? item.qty : 0;
+        });
+
+        const cartSummary = document.getElementById('cartSummary');
+        if (totalQty === 0) {
+          cartSummary.classList.add('disabled');
+        } else {
+          cartSummary.classList.remove('disabled');
+        }
+
+
+        if (cart.length === 0) {
+          closeCartModal(); // close modal if cart is empty
+        }
+        
+      }
+      
+
+      function removeFromCart(name) {
+        const index = cart.findIndex(item => item.name === name);
+        if (index !== -1) {
+          cart.splice(index, 1);
+        }
+        updateCartUI();
+      }
+
+      function toggleCartDetails() {
+        cartDetailsVisible = !cartDetailsVisible;
+        updateCartUI();
+      }
+
+      function checkoutCart() {
+        const totalAmount = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+        const upiId = window.appConfig.upiId;
+        const restaurantName = window.appConfig.restaurantName;
+        const txnNote = "Order Payment for " + restaurantName +  ' on ' + new Date().toDateString();
+        const txnRef = 'ORDER' + Date.now();  // unique reference ID
+        console.log('txnNote--'+txnNote);
+        const params = new URLSearchParams();
+        params.append("pa", upiId);                         // Payee VPA
+        params.append("pn", restaurantName);                // Payee Name
+        params.append("am", totalAmount.toFixed(2));        // Amount
+        params.append("cu", "INR");                         // Currency
+        params.append("tn", txnNote);                       // Transaction Note
+        params.append("tr", txnRef);                        // Transaction Reference
+
+        const upiUrl = "upi://pay?" + params.toString();
+        const upiQrUrl = "https://quickchart.io/qr?text=" + encodeURIComponent(upiUrl) + "&size=250";
+        console.log('upiUrl--'+upiUrl);
+
+        console.log('upiQrUrl--'+upiQrUrl);
+
+        // Update modal content
+        document.getElementById('paymentAmount').innerText = totalAmount.toFixed(2);
+        document.getElementById('upiQrImage').src = upiQrUrl;
+        document.getElementById('downloadQrBtn').href = upiQrUrl;
+
+        //document.getElementById('upiPayLink').href = upiUrl;
+      
+        // Show modal
+        document.getElementById('paymentModal').style.display = 'flex';
+      }
+      
+      function closePaymentModal() {
+        document.getElementById('paymentModal').style.display = 'none';
+      }
+      
+      function submitPayment() {
+        const txnId = document.getElementById('txnIdInput').value.trim();
+        if (!txnId) {
+          alert('⚠️ Please enter the transaction ID after making payment.');
+          return;
+        }
+      
+        // Optionally call Apps Script to save the cart + txnId
+        // Example: google.script.run.saveOrder(cart, txnId)
+      
+        google.script.run
+            .withSuccessHandler(() => {
+                alert('✅ Order saved to restaurant. Thank you!');
+                closePaymentModal();
+                closeCartModal();
+                cart.length = 0; // Clear cart
+                updateCartUI();
+            })
+            .withFailureHandler(err => {
+                alert('❌ Failed to save order. Please try again.\n' + err.message);
+            })
+            .saveOrder({ cart, txnId });
+      }
+
+      function loginWithGoogle() {
+        google.script.run.withSuccessHandler(function(email) {
+          if (email) {
+            document.getElementById("login-status").innerHTML = `✅ Logged in as: <strong>${email}</strong>`;
+            // You can store it in localStorage or global JS variable
+          } else {
+            document.getElementById("login-status").innerText = "❌ Could not detect login. Please ensure you're signed into Google.";
+          }
+        }).getLoggedInUserEmail();
+      }
+      
+      
+      function closeUpiModal() {
+        document.getElementById('upiModal').style.display = 'none';
+      }
+      
+      
+      function saveOrder(order) {
+        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Orders");
+        if (!sheet) return;
+      
+        order.cart.forEach(item => {
+          sheet.appendRow([
+            new Date(),
+            item.name,
+            item.qty,
+            item.price,
+            item.qty * item.price,
+            order.transactionId
+          ]);
+        });
+      }
+      
+
+      function openCartModal() {
+        if (cart.length === 0) return; // Prevent modal if cart is empty
+        cartModalVisible = true;
+        document.getElementById('cartModalOverlay').style.display = 'flex';
+        updateCartUI();
+      }
+      
+      function closeCartModal() {
+        cartModalVisible = false;
+        document.getElementById('cartModalOverlay').style.display = 'none';
+      }
+
+      function toggleDarkMode() {
+        document.body.classList.toggle("dark");
+      }
+
+      function clearSearch() {
+        const input = document.querySelector('.search-input');
+        input.value = '';
+        document.querySelectorAll('.item').forEach(item => item.classList.remove('hidden'));
+        document.querySelectorAll('.category').forEach(cat => cat.style.display = '');
+      }
+
+      document.querySelector('.search-input').addEventListener('input', function () {
+        const query = this.value.toLowerCase();
+        document.querySelectorAll('.category').forEach(cat => {
+          const items = cat.querySelectorAll('.item');
+          let found = false;
+          items.forEach(item => {
+            if (item.dataset.item.includes(query)) {
+              item.classList.remove('hidden');
+              found = true;
+            } else {
+              item.classList.add('hidden');
+            }
+          });
+          cat.style.display = found ? '' : 'none';
+        });
+      });
+
+      const scrollTopBtn = document.getElementById('scrollTopBtn');
+      window.addEventListener('scroll', () => {
+        scrollTopBtn.style.display = window.scrollY > 300 ? 'block' : 'none';
+      });
+
+      function scrollToTop() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+ 
+      document.querySelectorAll('.cat-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+          e.preventDefault();
+          const targetId = this.getAttribute('data-target');
+          const target = document.getElementById(targetId);
+          const offset = 190;
+          const top = target.getBoundingClientRect().top + window.pageYOffset - offset;
+          window.scrollTo({ top, behavior: 'smooth' });
+        });
+      });
+
+      const observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          const id = entry.target.getAttribute('id');
+          const link = document.querySelector('.cat-link[data-target="' + id + '"]');
+          if (entry.isIntersecting) {
+            document.querySelectorAll('.cat-link').forEach(l => l.classList.remove('active'));
+            if (link) link.classList.add('active');
+          }
+        });
+      }, { threshold: 0.6 });
+
+      document.querySelectorAll('.category').forEach(section => observer.observe(section));
+
+      // ✅ initialize cart state on load
+      updateCartUI();
+    </script>
+  </body>
+</html>
