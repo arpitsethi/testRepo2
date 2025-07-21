@@ -1,9 +1,33 @@
-function doGet() {
-  console.log('baba1');
+
+
+function doGet(e) { 
+  const token = e.parameter.token;
   const spreadsheetId = "1CzMKZy9_imdydq6M-Dx7bZK__QxV056rJ9EY6sybYZI";
-  const config = RestaurantLib.getConfig(spreadsheetId);
-  const { menu } = RestaurantLib.getMenuData(spreadsheetId); // get `menu` object only
-  return RestaurantLib.renderMenuPage(config, menu);
+const config = RestaurantLib.getConfig(spreadsheetId);
+      const { menu } = RestaurantLib.getMenuData(spreadsheetId);
+      const html = RestaurantLib.renderMenuPage(config, menu, null);
+  if (token) {
+    const email = 'test--'+RestaurantLib.validateMagicToken(token);
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("logs");
+  sheet.appendRow([
+      email
+    ]);
+    if (email && email != null) {
+      // Inject user email into HTML
+      const user = RestaurantLib.getUserByEmail(email);
+      RestaurantLib.renderMenuPage(config, menu, user);
+
+    } else {
+      return HtmlService.createHtmlOutput("Invalid or expired login link.");
+    }
+  }
+
+  // If no token, show login screen or fallback
+  return RestaurantLib.renderMenuPage(config, menu, null);
+}
+
+function sendMagicLink(email) {
+  return RestaurantLib.sendMagicLink(email);
 }
 
 
@@ -12,24 +36,14 @@ function saveOrder(order) {
 }
 
 
-function sendOtpToEmail(email) {
-  if (!email) throw new Error("Email is required");
-
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  const now = Date.now();
-
-  const otpData = JSON.stringify({
-    otp: otp,
-    createdAt: now
-  });
-
-  PropertiesService.getUserProperties().setProperty(`OTP_${email}`, otpData);
-
-  const subject = "Your Login OTP for Baba Bites";
-  const body = `Hello,\n\nYour OTP is: ${otp}\nIt is valid for 5 minutes.\n\n- Baba Bites`;
-
-  MailApp.sendEmail(email, subject, body);
+function generateAndSendOtp(phoneNumber) {
+  const aa = RestaurantLib.generateAndSendOtp("7668933865");
+  console.log('responseBaba'+aa);
+//alert('hi');
+  return true;
+  //return RestaurantLib.generateAndSendOtp(phoneNumber);
 }
+
 
 function verifyOtp(email, enteredOtp) {
   if (!email || !enteredOtp) return false;
